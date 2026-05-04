@@ -1,7 +1,7 @@
 ﻿![girl-agent banner](assets/final.png)
 
-[website]: https://girl-agent.dev
-[docs]: docs/index.html
+[website]: https://girl-agent.com
+[docs]: https://docs.girl-agent.com
 
 **[website]** &nbsp;·&nbsp; **[docs]**
 
