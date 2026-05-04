@@ -29,11 +29,10 @@
 
 ## Быстрый старт
 
+**Через NPX (рекомендуется):**
+
 ```powershell
-git clone https://github.com/TheSashaDev/girl-agent.git
-cd girl-agent
-npm install
-npm run dev
+npx @thesashadev/girl-agent
 ```
 
 Wizard задаст пару вопросов — имя, возраст, Telegram-подключение, LLM-ключ. Всё.
@@ -41,7 +40,16 @@ Wizard задаст пару вопросов — имя, возраст, Telegr
 Если профиль уже есть:
 
 ```powershell
-npm run dev -- --profile=arina
+npx @thesashadev/girl-agent --profile=arina
+```
+
+**Из исходников:**
+
+```powershell
+git clone https://github.com/TheSashaDev/girl-agent.git
+cd girl-agent
+npm install
+npm run dev
 ```
 
 ---

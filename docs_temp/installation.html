@@ -85,30 +85,18 @@
 <li>custom OpenAI-compatible API</li>
 </ul>
 <p>Самый простой путь  взять один API-ключ у провайдера и вставить его в wizard.</p>
-<h2>Шаг 1. Скачать проект</h2>
-<p>Открой PowerShell в папке, где хочешь хранить проект.</p>
+<h2>Шаг 1. Запустить через NPX</h2>
+<p>Открой PowerShell в любой папке.</p>
 <p>Выполни:</p>
-<pre><code>git clone &lt;repo-url&gt; girl-agent</code></pre>
-<p>Зайди в папку:</p>
-<pre><code>cd girl-agent</code></pre>
-<p>Если проект уже скачан, просто перейди в его папку.</p>
-<h2>Шаг 2. Поставить зависимости</h2>
-<p>В папке проекта выполни:</p>
-<pre><code>npm install</code></pre>
-<p>Это скачает библиотеки:</p>
-<ul>
-<li>Telegram Bot API клиент;</li>
-<li>GramJS для userbot mode;</li>
-<li>Ink для TUI;</li>
-<li>LLM SDK;</li>
-<li>TypeScript инструменты.</li>
-</ul>
-<p>Если установка прошла без красных ошибок  идём дальше.</p>
-<h2>Шаг 3. Запустить wizard</h2>
-<p>Выполни:</p>
-<pre><code>npm run dev</code></pre>
+<pre><code>npx @thesashadev/girl-agent</code></pre>
 <p>Если профилей ещё нет, откроется wizard.</p>
-<p>Wizard  это пошаговая настройка прямо в терминале. Он задаёт вопросы, а ты отвечаешь.</p>
+<p>Wizard — это пошаговая настройка прямо в терминале. Он задаёт вопросы, а ты отвечаешь.</p>
+<p><strong>Альтернатива: из исходников</strong></p>
+<p>Если хочешь работать с исходным кодом:</p>
+<pre><code>git clone https://github.com/TheSashaDev/girl-agent.git
+cd girl-agent
+npm install
+npm run dev</code></pre>
 <h2>Шаг 4. Выбрать режим Telegram</h2>
 <p>Wizard спросит:</p>
 <pre><code>Bot  обычный @BotFather бот
