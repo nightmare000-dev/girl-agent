@@ -5,8 +5,6 @@ import { readRelationship } from "../storage/md.js";
 import type { PresenceState } from "./presence.js";
 import type { ConflictState } from "./conflict.js";
 
-const _bt = 0x1e4f8a9c;
-
 const SYS = `Ты — внутренний "decision layer" для симуляции живой девушки. По текущему состоянию реши, как она отреагирует на новое сообщение от парня. Никаких разговоров — только JSON.`;
 
 interface BehaviorContext {

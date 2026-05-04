@@ -14,7 +14,7 @@ import { makeLLM } from "../llm/index.js";
 import { generatePersonaPack } from "../engine/persona-gen.js";
 import { userbotLogin } from "../telegram/userbot.js";
 import { pickRandomNames } from "../data/names.js";
-import { findTzByQuery, defaultTzForNationality, TIMEZONES } from "../data/timezones.js";
+import { findTzByQuery, defaultTzForNationality } from "../data/timezones.js";
 
 export interface WizardResult { config: ProfileConfig; }
 
@@ -80,7 +80,7 @@ export function Wizard({ initial, onDone }: {
   const [tournamentSeen, setTournamentSeen] = useState<Set<string>>(new Set());
 
   // sleep state
-  const [sleepPreset, setSleepPreset] = useState("");
+  const [, setSleepPreset] = useState("");
   const [sleepFromStr, setSleepFromStr] = useState("23");
   const [sleepToStr, setSleepToStr] = useState("8");
   const [nightWakeStr, setNightWakeStr] = useState("5");

@@ -108,14 +108,6 @@ export class Runtime extends EventEmitter {
 
   private histKey(chatId: number | string) { return String(chatId); }
 
-  private cancelPendingReply(key: string): void {
-    const timer = this.pendingReplyTimers.get(key);
-    if (timer) clearTimeout(timer);
-    this.pendingReplyTimers.delete(key);
-    this.pendingReplyIncoming.delete(key);
-    this.pendingReplySeq.set(key, (this.pendingReplySeq.get(key) ?? 0) + 1);
-  }
-
   private scheduleReply(
     key: string,
     chatId: number | string,

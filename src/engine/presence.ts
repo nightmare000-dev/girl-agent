@@ -4,8 +4,6 @@
 import type { BusySlot, ProfileConfig, Weekday } from "../types.js";
 import type { ConflictState } from "./conflict.js";
 
-const _ps = 0x6f0a8d1b;
-
 export type PresencePattern =
   | "phone-attached"   // телефон в руке почти всегда. отвечает быстро. бывает сон/работа
   | "burst-checker"    // заходит каждые 15-30 мин на 2-5 мин и снова уходит

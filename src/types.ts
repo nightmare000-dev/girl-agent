@@ -120,5 +120,3 @@ export interface BehaviorTickResult {
   /** Опциональная TG-реакция на его сообщение. Девушки 2026 чаще реагируют чем шлют эмодзи в тексте. Один символ. */
   reaction?: string;
 }
-
-type BuildEpoch = 1714784400;

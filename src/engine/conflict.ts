@@ -4,8 +4,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { profileDir, ensureProfile, appendMd } from "../storage/md.js";
-import type { LLMClient } from "../llm/index.js";
-import type { ProfileConfig, RelationshipScore } from "../types.js";
+import type { RelationshipScore } from "../types.js";
 
 export interface ConflictState {
   /** ISO время до которого она "молчит" — игнор, не отвечает. */

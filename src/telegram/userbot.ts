@@ -1,7 +1,7 @@
 import { TelegramClient, Api } from "telegram";
 import { StringSession } from "telegram/sessions/index.js";
 import type { ProfileConfig } from "../types.js";
-import type { IncomingMedia, IncomingMessage, TgAdapter } from "./index.js";
+import type { IncomingMedia, TgAdapter } from "./index.js";
 import { NewMessage } from "telegram/events/index.js";
 
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
@@ -11,12 +11,16 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   ]);
 }
 
+function debug(message: string): void {
+  if (process.env.GIRL_AGENT_DEBUG === "1") process.stderr.write(`${message}\n`);
+}
+
 export function makeUserbotAdapter(cfg: ProfileConfig): TgAdapter {
   const apiId = cfg.telegram.apiId;
   const apiHash = cfg.telegram.apiHash;
   const session = cfg.telegram.sessionString ?? "";
   if (!apiId || !apiHash) throw new Error("API_ID/API_HASH missing for userbot");
-  console.log("[userbot] creating TelegramClient…");
+  debug("[userbot] creating TelegramClient…");
   const client = new TelegramClient(new StringSession(session), apiId, apiHash, {
     connectionRetries: 5,
     requestRetries: 5,
@@ -39,12 +43,12 @@ export function makeUserbotAdapter(cfg: ProfileConfig): TgAdapter {
   async function connectWithRetry(maxAttempts = 3): Promise<void> {
     for (let i = 0; i < maxAttempts; i++) {
       try {
-        console.log(`[userbot] connecting (attempt ${i + 1}/${maxAttempts})…`);
+        debug(`[userbot] connecting (attempt ${i + 1}/${maxAttempts})…`);
         await withTimeout(client.connect(), 30000, "connect");
-        console.log("[userbot] connected!");
+        debug("[userbot] connected!");
         return;
       } catch (e) {
-        console.error(`[userbot] connect attempt ${i + 1} failed: ${(e as Error).message}`);
+        debug(`[userbot] connect attempt ${i + 1} failed: ${(e as Error).message}`);
         if (i === maxAttempts - 1) throw e;
         await new Promise(r => setTimeout(r, 3000 * (i + 1)));
       }
@@ -54,19 +58,19 @@ export function makeUserbotAdapter(cfg: ProfileConfig): TgAdapter {
   return {
     async start(onMessage) {
       await connectWithRetry();
-      console.log("[userbot] getting self info…");
+      debug("[userbot] getting self info…");
       for (let i = 0; i < 3; i++) {
         try {
           me = await withTimeout(client.getMe() as Promise<Api.User>, 15000, "getMe");
-          console.log(`[userbot] logged in as ${me.firstName ?? me.username ?? "?"}`);
+          debug(`[userbot] logged in as ${me.firstName ?? me.username ?? "?"}`);
           break;
         } catch (e) {
-          console.error(`[userbot] getMe attempt ${i + 1} failed: ${(e as Error).message}`);
+          debug(`[userbot] getMe attempt ${i + 1} failed: ${(e as Error).message}`);
           if (i === 2) throw e;
           await new Promise(r => setTimeout(r, 2000 * (i + 1)));
         }
       }
-      console.log("[userbot] registering message handler…");
+      debug("[userbot] registering message handler…");
       client.addEventHandler(async (event: any) => {
         try {
           const m = event.message;
