@@ -4,7 +4,7 @@ import mri from "mri";
 import { Wizard } from "./wizard/index.js";
 import { Dashboard } from "./dashboard/index.js";
 import { Runtime } from "./engine/runtime.js";
-import { readConfig, listProfiles, slugify, writeConfig } from "./storage/md.js";
+import { DATA_ROOT, readConfig, listProfiles, slugify, writeConfig } from "./storage/md.js";
 import { findPreset } from "./presets/llm.js";
 import { generatePersonaPack } from "./engine/persona-gen.js";
 import { makeLLM } from "./llm/index.js";
@@ -80,7 +80,13 @@ async function main() {
   // Direct start by profile
   if (argv.profile && !argv.mode && !argv.name) {
     const cfg = await readConfig(argv.profile);
-    if (!cfg) { process.stderr.write(`profile not found: ${argv.profile}\n`); process.exit(1); }
+    if (!cfg) {
+      const profiles = await listProfiles();
+      process.stderr.write(`profile not found: ${argv.profile}\n`);
+      process.stderr.write(`data dir: ${DATA_ROOT}\n`);
+      process.stderr.write(profiles.length ? `available profiles:\n${profiles.join("\n")}\n` : "available profiles: none\n");
+      process.exit(1);
+    }
     if (argv.reset) {
       cfg.stage = "tg-given-cold";
       await writeConfig(cfg);

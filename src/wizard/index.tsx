@@ -188,6 +188,7 @@ export function Wizard({ initial, onDone }: {
       setGenPercent(100);
       setGenStatus("готово!");
       setBusySchedule(generated.busySchedule);
+      await writeConfig(makeConfig({ busySchedule: generated.busySchedule, mcp: [] }));
       setTimeout(() => setStep("stage"), 800);
     } catch (e) {
       if (timer) clearInterval(timer);
@@ -878,7 +879,12 @@ export function Wizard({ initial, onDone }: {
           <SelectInput
             limit={10}
             items={STAGE_PRESETS.filter(s => s.id !== "dumped").map(s => ({ label: `${s.label}  ·  ${s.description}`, value: s.id }))}
-            onSelect={(it) => { setStage(it.value as StageId); setStep("mcp-pick"); }}
+            onSelect={async (it) => {
+              const nextStage = it.value as StageId;
+              setStage(nextStage);
+              await writeConfig(makeConfig({ stage: nextStage }));
+              setStep("mcp-pick");
+            }}
           />
         </Box>
       </Box>
@@ -963,21 +969,21 @@ export function Wizard({ initial, onDone }: {
 
   return null;
 
-  async function save() {
+  function makeConfig(overrides: Partial<Pick<ProfileConfig, "stage" | "busySchedule" | "mcp">> = {}): ProfileConfig {
     const slug = slugify(name);
-    const cfg: ProfileConfig = {
+    return {
       slug,
       name: name.trim(),
       age: Number(ageStr),
       nationality,
       tz: tz || defaultTzForNationality(nationality),
       mode,
-      stage,
+      stage: overrides.stage ?? stage,
       llm: { presetId: llmPresetId, proto: llmProto, baseURL: llmBaseURL, apiKey: llmKey, model: llmModel },
       telegram: mode === "bot"
         ? { botToken }
         : { apiId: Number(apiId), apiHash, phone, sessionString },
-      mcp: pickedMcp.map(id => ({ id, secrets: mcpSecrets[id] ?? {} })),
+      mcp: overrides.mcp ?? pickedMcp.map(id => ({ id, secrets: mcpSecrets[id] ?? {} })),
       createdAt: new Date().toISOString(),
       sleepFrom: Number(sleepFromStr),
       sleepTo: Number(sleepToStr),
@@ -985,8 +991,12 @@ export function Wizard({ initial, onDone }: {
       vibe: deriveLegacyVibe(communicationProfile),
       communication: communicationProfile,
       personaNotes: personaNotes.trim() || undefined,
-      busySchedule
+      busySchedule: overrides.busySchedule ?? busySchedule
     };
+  }
+
+  async function save() {
+    const cfg = makeConfig();
     await writeConfig(cfg);
     setStep("done");
     setTimeout(() => onDone(cfg), 600);

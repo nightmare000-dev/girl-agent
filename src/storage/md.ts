@@ -66,7 +66,16 @@ export async function writeConfig(cfg: ProfileConfig): Promise<void> {
 export async function listProfiles(): Promise<string[]> {
   try {
     const entries = await fs.readdir(DATA_ROOT, { withFileTypes: true });
-    return entries.filter(e => e.isDirectory()).map(e => e.name);
+    const dirs = entries.filter(e => e.isDirectory()).map(e => e.name);
+    const valid = await Promise.all(dirs.map(async (name) => {
+      try {
+        await fs.access(path.join(profileDir(name), "config.json"));
+        return name;
+      } catch {
+        return null;
+      }
+    }));
+    return valid.filter((name): name is string => !!name);
   } catch {
     return [];
   }
