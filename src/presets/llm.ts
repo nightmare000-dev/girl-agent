@@ -5,7 +5,7 @@ export const LLM_PRESETS: LLMPreset[] = [
     id: "openai",
     name: "OpenAI",
     proto: "openai",
-    defaultModel: "gpt-5.3-chat-latest",
+    defaultModel: "gpt-5.5",
     models: ["gpt-5.5", "gpt-5.5-thinking", "gpt-5.5-pro", "gpt-5.4", "gpt-5.4-pro", "gpt-5.4-thinking", "gpt-5.3-chat-latest", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini"]
   },
   {
