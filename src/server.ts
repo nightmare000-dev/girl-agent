@@ -1,77 +1,41 @@
 import { Runtime } from "./engine/runtime.js";
 import fs from "fs";
 
-async function main() {
-    console.log("Поиск конфигурации...");
+async function serverMain() {
+    console.log("=== ЗАПУСК СЕРВЕРА ===");
 
     if (!fs.existsSync("config.json")) {
-        console.error("ОШИБКА: config.json не найден в корне!");
+        console.error("ОШИБКА: config.json не найден в корне проекта!");
         process.exit(1);
     }
 
     const cfg = JSON.parse(fs.readFileSync("config.json", "utf-8"));
-    console.log(`>>> ЗАПУСК: ${cfg.name} <<<`);
+    console.log(`>>> ПРОФИЛЬ: ${cfg.name} <<<`);
 
-    const rt = new Runtime(cfg);
+    const runtimeInstance = new Runtime(cfg);
 
-    // Тот самый DEBUG-код, чтобы видеть всё в логах
-    // Мы проверяем наличие bot, так как в режиме userbot его может не быть
+    // Безопасный дебаг через 5 секунд после старта
     setTimeout(() => {
-        const botInstance = (rt as any).bot;
-        if (botInstance) {
-            console.log("Отладка Telegram активна. Слушаю сообщения...");
-            botInstance.on('message', (ctx: any) => {
-                console.log(`[DEBUG] Сообщение от ${ctx.from?.id}: ${ctx.message?.text || '[не текст]'}`);
+        const bot = (runtimeInstance as any).bot;
+        if (bot) {
+            console.log("Система отладки ТГ активна. Ожидаю сообщений...");
+            bot.on('message', (ctx: any) => {
+                console.log(`[LOG] Получено от ${ctx.from?.id}: ${ctx.message?.text || 'не текст'}`);
             });
+        } else {
+            console.log("Предупреждение: Экземпляр бота не найден (возможно, режим userbot).");
         }
-    }, 5000); // Даем 5 секунд на инициализацию
+    }, 5000);
 
-    await rt.start();
-    console.log("Бот онлайн!");
+    await runtimeInstance.start();
+    console.log("Бот официально онлайн!");
 
     process.on("SIGINT", async () => {
-        await rt.stop();
+        await runtimeInstance.stop();
         process.exit(0);
     });
 }
 
-main().catch(console.error);import { Runtime } from "./engine/runtime.js";
-import fs from "fs";
-
-async function main() {
-    console.log("Поиск конфигурации...");
-
-    let cfgRaw: string;
-
-    // Сначала ищем файл config.json в корне (специально для Render)
-    if (fs.existsSync("config.json")) {
-        console.log("Нашел config.json в корне проекта.");
-        cfgRaw = fs.readFileSync("config.json", "utf-8");
-    } else {
-        console.error("ОШИБКА: config.json не найден в корне!");
-        process.exit(1);
-    }
-
-    const cfg = JSON.parse(cfgRaw);
-    
-    if (cfg) {
-        console.log(`>>> СЕРВЕРНЫЙ ЗАПУСК: ${cfg.name} <<<`);
-        const rt = new Runtime(cfg);
-        // Это заставит бота орать в логи о любом шорохе
-        const rt = new Runtime(cfg);
-
-// Добавь этот костыль для отладки:
-        (rt as any).bot?.on('message', (ctx: any) => {
-            console.log(`[DEBUG] Пришло сообщение от ID: ${ctx.from?.id}, текст: ${ctx.message?.text}`);
-        });
-        await rt.start();
-        console.log("Бот онлайн и готов к общению!");
-
-        process.on("SIGINT", async () => {
-            await rt.stop();
-            process.exit(0);
-        });
-    }
-}
-
-main().catch(console.error);
+serverMain().catch((err) => {
+    console.error("КРИТИЧЕСКАЯ ОШИБКА РАБОТЫ:", err);
+});
