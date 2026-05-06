@@ -20,6 +20,13 @@ async function main() {
     if (cfg) {
         console.log(`>>> СЕРВЕРНЫЙ ЗАПУСК: ${cfg.name} <<<`);
         const rt = new Runtime(cfg);
+        // Это заставит бота орать в логи о любом шорохе
+        const rt = new Runtime(cfg);
+
+// Добавь этот костыль для отладки:
+        (rt as any).bot?.on('message', (ctx: any) => {
+            console.log(`[DEBUG] Пришло сообщение от ID: ${ctx.from?.id}, текст: ${ctx.message?.text}`);
+        });
         await rt.start();
         console.log("Бот онлайн и готов к общению!");
 
