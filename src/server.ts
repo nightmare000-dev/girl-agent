@@ -5,37 +5,27 @@ async function serverMain() {
     console.log("=== ЗАПУСК СЕРВЕРА ===");
 
     if (!fs.existsSync("config.json")) {
-        console.error("ОШИБКА: config.json не найден в корне проекта!");
+        console.error("ОШИБКА: config.json не найден!");
         process.exit(1);
     }
 
     const cfg = JSON.parse(fs.readFileSync("config.json", "utf-8"));
-    console.log(`>>> ПРОФИЛЬ: ${cfg.name} <<<`);
+    console.log(`>>> ПРОФИЛЬ: ${cfg.name} | РЕЖИМ: ${cfg.mode || 'bot'} <<<`);
 
-    const runtimeInstance = new Runtime(cfg);
+    const rt = new Runtime(cfg);
 
-    // Безопасный дебаг через 5 секунд после старта
-    setTimeout(() => {
-        const bot = (runtimeInstance as any).bot;
-        if (bot) {
-            console.log("Система отладки ТГ активна. Ожидаю сообщений...");
-            bot.on('message', (ctx: any) => {
-                console.log(`[LOG] Получено от ${ctx.from?.id}: ${ctx.message?.text || 'не текст'}`);
-            });
-        } else {
-            console.log("Предупреждение: Экземпляр бота не найден (возможно, режим userbot).");
-        }
-    }, 5000);
+    // Этот лог сработает ГАРАНТИРОВАННО при запуске
+    console.log("Инициализация Runtime...");
 
-    await runtimeInstance.start();
-    console.log("Бот официально онлайн!");
+    await rt.start();
+    
+    // Попробуем достать логгер из самого Runtime
+    console.log("Бот онлайн. Если логов нет при сообщениях — проверь ownerId в конфиге.");
 
     process.on("SIGINT", async () => {
-        await runtimeInstance.stop();
+        await rt.stop();
         process.exit(0);
     });
 }
 
-serverMain().catch((err) => {
-    console.error("КРИТИЧЕСКАЯ ОШИБКА РАБОТЫ:", err);
-});
+serverMain().catch((err) => console.error("ОШИБКА:", err));
