@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.5 — owner TG credentials proxy
+
+Дата: 2026-05-06
+
+- Добавлен TG auth proxy для пользователей без доступа к my.telegram.org (виртуальные номера, новые аккаунты, VPN с IP датацентра).
+- Новый шаг визарда: выбор между своими api_id/api_hash или использованием от владельца.
+- Весь процесс авторизации через MTProto идёт через прокси-сервер — креды владельца не отображаются.
+- Добавлен модуль `src/telegram/remote-auth.ts` — HTTP-клиент для прокси.
+- Proxy URL настраивается через `GIRL_AGENT_AUTH_PROXY` env var (по умолчанию `https://tgproxy.girl-agent.com`).
+
 ## 0.1.4 — npm publish automation
 
 Дата: 2026-05-06
