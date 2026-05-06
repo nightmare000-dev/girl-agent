@@ -14,13 +14,14 @@ import { slugify, writeConfig } from "../storage/md.js";
 import { makeLLM } from "../llm/index.js";
 import { generatePersonaPack } from "../engine/persona-gen.js";
 import { userbotLogin } from "../telegram/userbot.js";
+import { remoteSendCode, remoteVerifyCode, remoteVerifyPassword, isNeeds2FA } from "../telegram/remote-auth.js";
 import { pickRandomNames } from "../data/names.js";
 import { findTzByQuery, defaultTzForNationality } from "../data/timezones.js";
 
 export interface WizardResult { config: ProfileConfig; }
 
 type Step =
-  | "splash" | "mode" | "tg-bot-token" | "tg-userbot-api" | "tg-userbot-phone" | "tg-userbot-code" | "tg-userbot-pass"
+  | "splash" | "mode" | "tg-bot-token" | "tg-userbot-source" | "tg-userbot-api" | "tg-userbot-phone" | "tg-userbot-code" | "tg-userbot-pass"
   | "api-preset" | "api-base" | "api-model" | "api-model-custom" | "api-key"
   | "nationality" | "name-mode" | "name" | "name-tournament" | "name-tournament-knockout"
   | "age" | "sleep" | "sleep-custom-from" | "sleep-custom-to" | "sleep-custom-chance" | "vibe"
@@ -67,6 +68,8 @@ export function Wizard({ initial, onDone }: {
   const [code, setCode] = useState("");
   const [pass2fa, setPass2fa] = useState("");
   const [sessionString, setSessionString] = useState(initial?.telegram?.sessionString ?? "");
+  const [useOwnerCreds, setUseOwnerCreds] = useState(false);
+  const [loginToken, setLoginToken] = useState("");
 
   const [llmPresetId, setLlmPresetId] = useState<string>(initial?.llm?.presetId ?? "openai");
   const [llmProto, setLlmProto] = useState<LLMProto>(initial?.llm?.proto ?? "openai");
@@ -205,7 +208,7 @@ export function Wizard({ initial, onDone }: {
             onSelect={(it) => {
               const m = it.value as ClientMode;
               setMode(m);
-              setStep(m === "bot" ? "tg-bot-token" : "tg-userbot-api");
+              setStep(m === "bot" ? "tg-bot-token" : "tg-userbot-source");
             }}
           />
         </Box>
@@ -225,6 +228,35 @@ export function Wizard({ initial, onDone }: {
           }} />
         </Box>
         {error && <Text color="red">{error}</Text>}
+      </Box>
+    );
+  }
+
+  if (step === "tg-userbot-source") {
+    return (
+      <Box flexDirection="column" padding={1}>
+        <Header sub="у тебя есть свои API credentials?" />
+        <Bar step={1} total={9} />
+        <Box marginTop={1}>
+          <SelectInput
+            items={[
+              { label: "Да, у меня есть api_id и api_hash (my.telegram.org)", value: "own" },
+              { label: "Нет — использовать от владельца бота", value: "owner" },
+            ]}
+            onSelect={(it) => {
+              if (it.value === "own") {
+                setUseOwnerCreds(false);
+                setStep("tg-userbot-api");
+              } else {
+                setUseOwnerCreds(true);
+                setStep("tg-userbot-phone");
+              }
+            }}
+          />
+        </Box>
+        <Box marginTop={1}>
+          <Text dimColor>если не можешь создать приложение на my.telegram.org — выбери второй вариант</Text>
+        </Box>
       </Box>
     );
   }
@@ -260,21 +292,34 @@ export function Wizard({ initial, onDone }: {
         <Bar step={1} total={9} />
         <Box marginTop={1}><Text>Phone: </Text>
           <TextInput value={phone} onChange={setPhone} onSubmit={async () => {
-            setStep("tg-userbot-code");
-            setGenStatus("отправляем код…");
-            try {
-              const sess = await userbotLogin({
-                apiId: Number(apiId),
-                apiHash,
-                phone,
-                promptCode: () => new Promise<string>((res) => setCodeResolver(() => res)),
-                promptPassword: () => new Promise<string>((res) => setPassResolver(() => res))
-              });
-              setSessionString(sess);
-              setStep("api-preset");
-            } catch (e) {
-              setError((e as Error).message);
-              setStep("tg-userbot-phone");
+            setError(null);
+            if (useOwnerCreds) {
+              setGenStatus("отправляем код через прокси…");
+              setStep("tg-userbot-code");
+              try {
+                const result = await remoteSendCode(phone);
+                setLoginToken(result.loginToken);
+              } catch (e) {
+                setError((e as Error).message);
+                setStep("tg-userbot-phone");
+              }
+            } else {
+              setStep("tg-userbot-code");
+              setGenStatus("отправляем код…");
+              try {
+                const sess = await userbotLogin({
+                  apiId: Number(apiId),
+                  apiHash,
+                  phone,
+                  promptCode: () => new Promise<string>((res) => setCodeResolver(() => res)),
+                  promptPassword: () => new Promise<string>((res) => setPassResolver(() => res))
+                });
+                setSessionString(sess);
+                setStep("api-preset");
+              } catch (e) {
+                setError((e as Error).message);
+                setStep("tg-userbot-phone");
+              }
             }
           }} />
         </Box>
@@ -289,11 +334,31 @@ export function Wizard({ initial, onDone }: {
         <Header sub="код из Telegram" />
         <Bar step={1} total={9} />
         <Box marginTop={1}><Text>Code: </Text>
-          <TextInput value={code} onChange={setCode} onSubmit={() => {
-            codeResolver?.(code);
-            setStep("tg-userbot-pass");
+          <TextInput value={code} onChange={setCode} onSubmit={async () => {
+            if (useOwnerCreds) {
+              if (!loginToken) { setError("ещё отправляем код, подожди…"); return; }
+              setError(null);
+              try {
+                const result = await remoteVerifyCode(loginToken, code);
+                if (isNeeds2FA(result)) {
+                  setStep("tg-userbot-pass");
+                } else {
+                  setApiId(String(result.apiId));
+                  setApiHash(result.apiHash);
+                  setSessionString(result.sessionString);
+                  setStep("api-preset");
+                }
+              } catch (e) {
+                setError((e as Error).message);
+                setStep("tg-userbot-phone");
+              }
+            } else {
+              codeResolver?.(code);
+              setStep("tg-userbot-pass");
+            }
           }} />
         </Box>
+        {error && <Text color="red">{error}</Text>}
       </Box>
     );
   }
@@ -304,10 +369,25 @@ export function Wizard({ initial, onDone }: {
         <Header sub="2FA пароль (если есть, иначе Enter)" />
         <Bar step={1} total={9} />
         <Box marginTop={1}><Text>2FA: </Text>
-          <TextInput value={pass2fa} onChange={setPass2fa} mask="•" onSubmit={() => {
-            passResolver?.(pass2fa);
+          <TextInput value={pass2fa} onChange={setPass2fa} mask="•" onSubmit={async () => {
+            if (useOwnerCreds) {
+              setError(null);
+              try {
+                const result = await remoteVerifyPassword(loginToken, pass2fa);
+                setApiId(String(result.apiId));
+                setApiHash(result.apiHash);
+                setSessionString(result.sessionString);
+                setStep("api-preset");
+              } catch (e) {
+                setError((e as Error).message);
+                setStep("tg-userbot-phone");
+              }
+            } else {
+              passResolver?.(pass2fa);
+            }
           }} />
         </Box>
+        {error && <Text color="red">{error}</Text>}
         <Text dimColor>входим в аккаунт…</Text>
       </Box>
     );
