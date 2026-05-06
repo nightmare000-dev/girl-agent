@@ -6,7 +6,7 @@
  * only sends phone, code, and optional 2FA password.
  */
 
-const DEFAULT_PROXY = "https://girl-agent.com/api/tg";
+const DEFAULT_PROXY = "https://tgproxy.annenkov.me";
 
 function proxyUrl(): string {
   return process.env.GIRL_AGENT_AUTH_PROXY ?? DEFAULT_PROXY;
