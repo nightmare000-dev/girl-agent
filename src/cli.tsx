@@ -17,7 +17,8 @@ const HELP = `
 girl-agent — AI girl for Telegram
 
 usage:
-  npx girl-agent                       # запустить TUI визард
+  npx girl-agent                       # запустить TUI визард (или автозагрузка если 1 профиль)
+  npx girl-agent --new                 # принудительно открыть визард для нового профиля
   npx girl-agent --profile=<slug>      # запустить готовый профиль
   npx girl-agent --reset --profile=<slug>
   npx girl-agent <flags>               # пропустить визард с аргументами
@@ -45,6 +46,7 @@ required flags для headless setup (--name --age --stage --api-preset --api-ke
   --tz=<value>                IANA "Europe/Moscow" / "GMT+3" / "+3" / "Киев" — поиск
   --stage=<id>                met-irl-got-tg|tg-given-cold|tg-given-warming|convinced|first-date-done|dating-early|dating-stable|long-term
   --mcp=exa:KEY               можно несколько раз
+  --new                       принудительно открыть визард для нового профиля
   --list                      показать профили
   --help
 
@@ -58,7 +60,7 @@ async function main() {
       "name", "stage", "mcp", "nationality", "tz", "vibe", "persona-notes", "communication-preset",
       "notifications", "message-style", "initiative", "life-sharing", "privacy"
     ],
-    boolean: ["help", "list", "reset"],
+    boolean: ["help", "list", "reset", "new"],
     alias: { h: "help" }
   });
 
@@ -112,7 +114,7 @@ async function main() {
   }
 
   // Если есть существующие профили и нет флагов — показать выбор или автозагрузить
-  if (!argv.profile && !haveEnoughForFlags) {
+  if (!argv.new && !argv.profile && !haveEnoughForFlags) {
     const profiles = await listProfiles();
     if (profiles.length === 1) {
       const cfg = await readConfig(profiles[0]);
