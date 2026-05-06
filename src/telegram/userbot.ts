@@ -3,6 +3,7 @@ import { StringSession } from "telegram/sessions/index.js";
 import type { ProfileConfig } from "../types.js";
 import type { IncomingMedia, TgAdapter } from "./index.js";
 import { NewMessage } from "telegram/events/index.js";
+import { escapeMarkdownV2 } from "./markdown.js";
 
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
@@ -158,7 +159,11 @@ export function makeUserbotAdapter(cfg: ProfileConfig): TgAdapter {
     },
     async editLastMessage(chatId, messageId, text) {
       const peer = await resolvePeer(chatId);
-      await client.editMessage(peer, { message: messageId, text, parseMode: 'MarkdownV2' });
+      try {
+        await client.editMessage(peer, { message: messageId, text: escapeMarkdownV2(text), parseMode: 'MarkdownV2' });
+      } catch {
+        await client.editMessage(peer, { message: messageId, text });
+      }
     },
     async deleteMessages(chatId, messageIds, revoke = false) {
       const peer = await resolvePeer(chatId);

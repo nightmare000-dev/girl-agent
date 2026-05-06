@@ -1,6 +1,7 @@
 import { Bot } from "grammy";
 import type { ProfileConfig } from "../types.js";
 import type { IncomingMedia, IncomingMessage, TgAdapter } from "./index.js";
+import { escapeMarkdownV2 } from "./markdown.js";
 
 export function makeBotAdapter(cfg: ProfileConfig): TgAdapter {
   const token = cfg.telegram.botToken;
@@ -27,8 +28,13 @@ export function makeBotAdapter(cfg: ProfileConfig): TgAdapter {
       bot.start({ drop_pending_updates: true }).catch(() => {});
     },
     async sendText(chatId, text) {
-      const msg = await bot.api.sendMessage(chatId as number, text, { parse_mode: "MarkdownV2" });
-      return msg.message_id;
+      try {
+        const msg = await bot.api.sendMessage(chatId as number, escapeMarkdownV2(text), { parse_mode: "MarkdownV2" });
+        return msg.message_id;
+      } catch {
+        const msg = await bot.api.sendMessage(chatId as number, text);
+        return msg.message_id;
+      }
     },
     async setTyping(chatId, on) {
       if (on) {
