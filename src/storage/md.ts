@@ -45,6 +45,7 @@ export async function readConfig(slug: string): Promise<ProfileConfig | null> {
       sleepFrom: 23,
       sleepTo: 8,
       nightWakeChance: 0.05,
+      privacy: "owner-only",
       busySchedule: [],
       ...parsed,
       communication
@@ -286,4 +287,3 @@ export async function writeAgenda(slug: string, items: AgendaItem[]): Promise<vo
   await ensureProfile(slug);
   await fs.writeFile(path.join(profileDir(slug), "agenda.json"), JSON.stringify(items, null, 2), "utf8");
 }
-

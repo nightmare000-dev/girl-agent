@@ -6,6 +6,8 @@ const SYS = `Ты — режиссёр персонажей. Твоя задач
 
 interface GenOut { persona: string; speech: string; boundaries: string; busySchedule: BusySlot[]; }
 
+type ProgressReporter = (percent: number, status: string) => void;
+
 const WEEKDAYS: Weekday[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 export async function generatePersonaPack(
@@ -14,7 +16,8 @@ export async function generatePersonaPack(
   name: string,
   age: number,
   nationality: "RU" | "UA" = "RU",
-  personaNotes = ""
+  personaNotes = "",
+  onProgress?: ProgressReporter
 ): Promise<GenOut> {
   const country = nationality === "UA" ? "Украина" : "Россия / СНГ";
   const langHint = nationality === "UA"
@@ -121,12 +124,14 @@ export async function generatePersonaPack(
 - days только из: mon, tue, wed, thu, fri, sat, sun.
 - Без markdown, только JSON.`;
 
-  const [persona, speech, boundaries, routineRaw] = await Promise.all([
-    llm.chat([{ role: "system", content: sys }, { role: "user", content: personaPrompt }], { temperature: 0.95, maxTokens: 3500 }),
-    llm.chat([{ role: "system", content: sys }, { role: "user", content: speechPrompt }], { temperature: 0.9, maxTokens: 3500 }),
-    llm.chat([{ role: "system", content: sys }, { role: "user", content: boundariesPrompt }], { temperature: 0.9, maxTokens: 3500 }),
-    llm.chat([{ role: "system", content: sys }, { role: "user", content: routinePrompt }], { temperature: 0.85, maxTokens: 3500, json: true })
-  ]);
+  onProgress?.(5, "генерируем persona.md…");
+  const persona = await llm.chat([{ role: "system", content: sys }, { role: "user", content: personaPrompt }], { temperature: 0.95, maxTokens: 3500 });
+  onProgress?.(35, "генерируем speech.md…");
+  const speech = await llm.chat([{ role: "system", content: sys }, { role: "user", content: speechPrompt }], { temperature: 0.9, maxTokens: 3500 });
+  onProgress?.(65, "генерируем communication.md…");
+  const boundaries = await llm.chat([{ role: "system", content: sys }, { role: "user", content: boundariesPrompt }], { temperature: 0.9, maxTokens: 3500 });
+  onProgress?.(85, "генерируем busy schedule…");
+  const routineRaw = await llm.chat([{ role: "system", content: sys }, { role: "user", content: routinePrompt }], { temperature: 0.85, maxTokens: 3500, json: true });
 
   const busySchedule = parseBusySchedule(routineRaw, name, age);
 

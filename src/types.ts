@@ -2,6 +2,8 @@ export type ClientMode = "bot" | "userbot";
 
 export type LLMProto = "openai" | "anthropic";
 
+export type PrivacyMode = "owner-only" | "allow-strangers";
+
 export type Nationality = "RU" | "UA";
 
 export interface LLMPreset {
@@ -103,6 +105,7 @@ export interface ProfileConfig {
   };
   mcp: { id: string; secrets: Record<string, string> }[];
   ownerId?: number; // tg user id of the human (set on first message in practice / fallback)
+  privacy?: PrivacyMode;
   createdAt: string;
   /** Часы сна (0-23). sleepFrom — когда ложится, sleepTo — когда просыпается. Может пересекать полночь. */
   sleepFrom: number;

@@ -11,7 +11,7 @@ import { makeLLM } from "./llm/index.js";
 import { parseTzFlag, defaultTzForNationality } from "./data/timezones.js";
 import { pickRandomNames } from "./data/names.js";
 import { communicationProfileLabel, deriveLegacyVibe, findCommunicationPreset, normalizeCommunicationProfile } from "./presets/communication.js";
-import type { ProfileConfig, ClientMode, StageId, LLMProto, Nationality, CommunicationProfile } from "./types.js";
+import type { ProfileConfig, ClientMode, StageId, LLMProto, Nationality, CommunicationProfile, PrivacyMode } from "./types.js";
 
 const HELP = `
 girl-agent — AI girl for Telegram
@@ -40,6 +40,7 @@ required flags для headless setup (--name --age --stage --api-preset --api-ke
   --message-style=<style>     one-liners|balanced|bursty|longform
   --initiative=<level>        low|medium|high
   --life-sharing=<level>      low|medium|high
+  --privacy=<mode>            owner-only|allow-strangers (по умолчанию owner-only)
   --nationality=RU|UA         (по умолчанию RU)
   --tz=<value>                IANA "Europe/Moscow" / "GMT+3" / "+3" / "Киев" — поиск
   --stage=<id>                met-irl-got-tg|tg-given-cold|tg-given-warming|convinced|first-date-done|dating-early|dating-stable|long-term
@@ -55,7 +56,7 @@ async function main() {
     string: [
       "profile", "mode", "token", "api-id", "api-hash", "phone", "api-preset", "base-url", "proto", "model", "api-key",
       "name", "stage", "mcp", "nationality", "tz", "vibe", "persona-notes", "communication-preset",
-      "notifications", "message-style", "initiative", "life-sharing"
+      "notifications", "message-style", "initiative", "life-sharing", "privacy"
     ],
     boolean: ["help", "list", "reset"],
     alias: { h: "help" }
@@ -155,6 +156,7 @@ async function buildConfigFromFlags(argv: any): Promise<ProfileConfig> {
   const tz = (argv.tz ? parseTzFlag(String(argv.tz)) : undefined) ?? defaultTzForNationality(nationality);
   const mcpFlags = ([] as string[]).concat(argv.mcp ?? []);
   const communication = communicationFromFlags(argv);
+  const privacy = oneOf(argv.privacy, ["owner-only", "allow-strangers"], "owner-only" as PrivacyMode);
   const mcps: { id: string; secrets: Record<string, string> }[] = mcpFlags.map((entry: string) => {
     const [id, key] = entry.split(":");
     const secrets: Record<string, string> = id === "exa"
@@ -180,6 +182,7 @@ async function buildConfigFromFlags(argv: any): Promise<ProfileConfig> {
           phone: String(argv.phone ?? "")
         },
     mcp: mcps,
+    privacy,
     createdAt: new Date().toISOString(),
     sleepFrom: 23,
     sleepTo: 8,

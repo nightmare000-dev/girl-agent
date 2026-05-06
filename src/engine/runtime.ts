@@ -142,6 +142,10 @@ export class Runtime extends EventEmitter {
     return this.cfg.ownerId === fromId;
   }
 
+  private strangersAllowed(): boolean {
+    return this.cfg.privacy === "allow-strangers";
+  }
+
   private primaryIsCommitted(): boolean {
     return ["dating-early", "dating-stable", "long-term"].includes(this.cfg.stage);
   }
@@ -368,6 +372,10 @@ export class Runtime extends EventEmitter {
       await this.switchPrimaryAfterDumped(m.fromId);
       await this.ensureOwner(m.fromId);
       const isPrimary = this.isPrimaryFrom(m.fromId);
+      if (!isPrimary && !this.strangersAllowed()) {
+        this.emit("event", { type: "ignored", text: m.text, chatId: m.chatId, reason: "privacy-owner-only" } as RuntimeEvent);
+        return;
+      }
       if (isPrimary && this.cfg.stage === "dumped") {
         this.emit("event", { type: "ignored", text: m.text, reason: "dumped" } as RuntimeEvent);
         return;
@@ -744,6 +752,7 @@ export class Runtime extends EventEmitter {
       `имя: ${this.cfg.name}, ${this.cfg.age}`,
       `стадия: ${stage.label} (${this.cfg.stage})`,
       `primary owner: ${this.cfg.ownerId ?? "—"}`,
+      `privacy: ${this.cfg.privacy ?? "owner-only"}`,
       `presence: ${this.presenceProfile.pattern}`,
       `communication: ${communicationProfileLabel(communication)}`,
       `score: ${JSON.stringify(rel.score)}`,

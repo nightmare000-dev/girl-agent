@@ -9,7 +9,7 @@ import { LLM_PRESETS, findPreset } from "../presets/llm.js";
 import { MCP_PRESETS } from "../presets/mcp.js";
 import { STAGE_PRESETS } from "../presets/stages.js";
 import { COMMUNICATION_PRESETS, communicationProfileLabel, deriveLegacyVibe, findCommunicationPreset, normalizeCommunicationProfile } from "../presets/communication.js";
-import type { ProfileConfig, ClientMode, LLMProto, StageId, Nationality, BusySlot, CommunicationProfile } from "../types.js";
+import type { ProfileConfig, ClientMode, LLMProto, StageId, Nationality, BusySlot, CommunicationProfile, PrivacyMode } from "../types.js";
 import { slugify, writeConfig } from "../storage/md.js";
 import { makeLLM } from "../llm/index.js";
 import { generatePersonaPack } from "../engine/persona-gen.js";
@@ -21,11 +21,11 @@ export interface WizardResult { config: ProfileConfig; }
 
 type Step =
   | "splash" | "mode" | "tg-bot-token" | "tg-userbot-api" | "tg-userbot-phone" | "tg-userbot-code" | "tg-userbot-pass"
-  | "api-preset" | "api-base" | "api-model" | "api-key"
+  | "api-preset" | "api-base" | "api-model" | "api-model-custom" | "api-key"
   | "nationality" | "name-mode" | "name" | "name-tournament" | "name-tournament-knockout"
   | "age" | "sleep" | "sleep-custom-from" | "sleep-custom-to" | "sleep-custom-chance" | "vibe"
   | "comm-notifications" | "comm-style" | "comm-initiative" | "comm-life"
-  | "tz" | "persona-notes" | "generating" | "stage" | "mcp-pick" | "mcp-secret" | "saving" | "done";
+  | "privacy" | "tz" | "persona-notes" | "generating" | "generation-error" | "stage" | "mcp-pick" | "mcp-secret" | "saving" | "done";
 
 const TOURNAMENT_ROUNDS = 20;
 
@@ -94,6 +94,7 @@ export function Wizard({ initial, onDone }: {
   const [sleepToStr, setSleepToStr] = useState("8");
   const [nightWakeStr, setNightWakeStr] = useState("5");
   const [communicationProfile, setCommunicationProfile] = useState<CommunicationProfile>(normalizeCommunicationProfile(initial));
+  const [privacy, setPrivacy] = useState<PrivacyMode>(initial?.privacy ?? "owner-only");
 
   const [stage, setStage] = useState<StageId>(initial?.stage ?? "tg-given-cold");
 
@@ -148,52 +149,33 @@ export function Wizard({ initial, onDone }: {
   async function startGeneration() {
     setStep("generating");
     setGenPercent(0);
-    let timer: NodeJS.Timeout | null = null;
     try {
-      setGenStatus("генерируем личность…");
+      setError(null);
+      setGenStatus("подключаемся к LLM…");
       const slug = slugify(name);
       const llm = makeLLM({ presetId: llmPresetId, proto: llmProto, baseURL: llmBaseURL, apiKey: llmKey, model: llmModel });
 
-      // Fake realistic progress animation - much slower
-      const progressSteps = [
-        { at: 2000, to: 8, status: "анализируем имя и возраст…" },
-        { at: 5000, to: 15, status: "создаём базовый профиль…" },
-        { at: 9000, to: 24, status: "пишем persona.md…" },
-        { at: 14000, to: 35, status: "генерируем паттерны речи…" },
-        { at: 20000, to: 48, status: "speech.md…" },
-        { at: 27000, to: 62, status: "communication.md…" },
-        { at: 35000, to: 75, status: "busy schedule…" },
-        { at: 44000, to: 85, status: "финальная проверка…" },
-        { at: 54000, to: 94, status: "почти готово…" },
-        { at: 65000, to: 98, status: "завершаем…" },
-      ];
-
-      const startTime = Date.now();
-      let progressIndex = 0;
-      timer = setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        while (progressIndex < progressSteps.length && elapsed >= progressSteps[progressIndex].at) {
-          const step = progressSteps[progressIndex];
-          setGenPercent(step.to);
-          setGenStatus(step.status);
-          progressIndex++;
+      const generated = await generatePersonaPack(
+        llm,
+        slug,
+        name.trim(),
+        Number(ageStr),
+        nationality,
+        personaNotesForGeneration(personaNotes, communicationProfile),
+        (percent, status) => {
+          setGenPercent(percent);
+          setGenStatus(status);
         }
-        if (progressIndex >= progressSteps.length) {
-          clearInterval(timer!);
-        }
-      }, 100);
-
-      const generated = await generatePersonaPack(llm, slug, name.trim(), Number(ageStr), nationality, personaNotesForGeneration(personaNotes, communicationProfile));
-      if (timer) clearInterval(timer);
+      );
       setGenPercent(100);
       setGenStatus("готово!");
       setBusySchedule(generated.busySchedule);
       await writeConfig(makeConfig({ busySchedule: generated.busySchedule, mcp: [] }));
       setTimeout(() => setStep("stage"), 800);
     } catch (e) {
-      if (timer) clearInterval(timer);
       setError("LLM ошибка: " + (e as Error).message);
-      setStep("api-key");
+      setGenStatus("ошибка генерации");
+      setStep("generation-error");
     }
   }
 
@@ -380,9 +362,7 @@ export function Wizard({ initial, onDone }: {
             <SelectInput items={items} onSelect={(it) => {
               if (it.value === "__custom__") {
                 setLlmModel("");
-                // fallthrough — show input below by re-render with empty list path
-                setStep("api-key"); // we'll let user type model in next render? simpler: re-use a tiny route
-                setStep("api-model-custom" as Step);
+                setStep("api-model-custom");
               } else {
                 setLlmModel(it.value as string);
                 setStep("api-key");
@@ -714,7 +694,7 @@ export function Wizard({ initial, onDone }: {
               }
               const preset = findCommunicationPreset(String(it.value));
               if (preset) setCommunicationProfile(preset.profile);
-              setStep("tz");
+              setStep("privacy");
             }}
           />
         </Box>
@@ -803,10 +783,32 @@ export function Wizard({ initial, onDone }: {
             ]}
             onSelect={(it) => {
               setCommunicationProfile(p => ({ ...p, lifeSharing: it.value as CommunicationProfile["lifeSharing"] }));
+              setStep("privacy");
+            }}
+          />
+        </Box>
+      </Box>
+    );
+  }
+
+  if (step === "privacy") {
+    return (
+      <Box flexDirection="column" padding={1}>
+        <Header sub="приватность Telegram" />
+        <Bar step={8} total={13} />
+        <Box marginTop={1}>
+          <SelectInput
+            items={[
+              { label: "Только я — отвечать только primary owner, остальных молча игнорировать", value: "owner-only" },
+              { label: "Разрешить сторонние чаты — коротко общаться с незнакомыми без памяти", value: "allow-strangers" }
+            ]}
+            onSelect={(it) => {
+              setPrivacy(it.value as PrivacyMode);
               setStep("tz");
             }}
           />
         </Box>
+        <Text dimColor>Primary owner закрепляется по первому личному сообщению.</Text>
       </Box>
     );
   }
@@ -816,7 +818,7 @@ export function Wizard({ initial, onDone }: {
     return (
       <Box flexDirection="column" padding={1}>
         <Header sub="её часовой пояс (где живёт)" />
-        <Bar step={7} total={12} />
+        <Bar step={9} total={13} />
         <Box marginTop={1}><Text>поиск (город/страна/GMT): </Text>
           <TextInput value={tzQuery} onChange={setTzQuery} onSubmit={() => {
             if (matches[0]) {
@@ -841,7 +843,7 @@ export function Wizard({ initial, onDone }: {
     return (
       <Box flexDirection="column" padding={1}>
         <Header sub="доп. пожелания к персоне (необязательно)" />
-        <Bar step={8} total={13} />
+        <Bar step={10} total={13} />
         <Box marginTop={1} flexDirection="column">
           <Text dimColor>Пример: дерзкая, учится на дизайнера, не любит аниме, сухая манера речи, живёт с мамой, ревнивая.</Text>
           <Box marginTop={1}><Text>notes: </Text>
@@ -870,11 +872,37 @@ export function Wizard({ initial, onDone }: {
     );
   }
 
+  if (step === "generation-error") {
+    return (
+      <Box flexDirection="column" padding={1}>
+        <Header sub="генерация не завершилась" />
+        <Box marginTop={1} flexDirection="column">
+          <Text color="red">{error}</Text>
+          <Text dimColor>Настройки не сброшены: можно исправить API/base URL/model/key и запустить генерацию снова.</Text>
+        </Box>
+        <Box marginTop={1}>
+          <SelectInput
+            items={[
+              { label: "Повторить генерацию с теми же настройками", value: "retry" },
+              { label: "Изменить API ключ", value: "api-key" },
+              { label: "Изменить модель", value: "api-model-custom" },
+              { label: "Изменить base URL", value: "api-base" }
+            ]}
+            onSelect={(it) => {
+              if (it.value === "retry") void startGeneration();
+              else setStep(it.value as Step);
+            }}
+          />
+        </Box>
+      </Box>
+    );
+  }
+
   if (step === "stage") {
     return (
       <Box flexDirection="column" padding={1}>
         <Header sub="на какой стадии вы сейчас?" />
-        <Bar step={8} total={12} />
+        <Bar step={11} total={13} />
         <Box marginTop={1}>
           <SelectInput
             limit={10}
@@ -895,7 +923,7 @@ export function Wizard({ initial, onDone }: {
     return (
       <Box flexDirection="column" padding={1}>
         <Header sub="MCP инструменты (space — toggle, enter — далее)" />
-        <Bar step={9} total={12} />
+        <Bar step={12} total={13} />
         <McpToggle
           selected={pickedMcp}
           onChange={setPickedMcp}
@@ -984,6 +1012,7 @@ export function Wizard({ initial, onDone }: {
         ? { botToken }
         : { apiId: Number(apiId), apiHash, phone, sessionString },
       mcp: overrides.mcp ?? pickedMcp.map(id => ({ id, secrets: mcpSecrets[id] ?? {} })),
+      privacy,
       createdAt: new Date().toISOString(),
       sleepFrom: Number(sleepFromStr),
       sleepTo: Number(sleepToStr),

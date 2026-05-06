@@ -9,6 +9,24 @@ export const LLM_PRESETS: LLMPreset[] = [
     models: ["gpt-5.5", "gpt-5.5-thinking", "gpt-5.5-pro", "gpt-5.4", "gpt-5.4-pro", "gpt-5.4-thinking", "gpt-5.3-chat-latest", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini"]
   },
   {
+    id: "lmstudio",
+    name: "LM Studio",
+    proto: "openai",
+    baseURL: "http://localhost:1234/v1",
+    defaultModel: "",
+    custom: true,
+    hint: "локально, OpenAI-compatible endpoint"
+  },
+  {
+    id: "ollama",
+    name: "Ollama",
+    proto: "openai",
+    baseURL: "http://localhost:11434/v1",
+    defaultModel: "llama3.1",
+    custom: true,
+    hint: "локально через /v1"
+  },
+  {
     id: "anthropic",
     name: "Anthropic",
     proto: "anthropic",
